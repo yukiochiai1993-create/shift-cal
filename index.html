@@ -89,22 +89,22 @@ summary{font-size:14px}
 <div class="log" id="log"></div>
 
 <details>
-  <summary>勤務の時間設定（初期は終日。明け・外勤は8:30〜9:00の時間指定）</summary>
+  <summary>勤務の時間設定（初期は終日。明け・旭・静岡・がんセンターは8:30〜9:00の時間指定）</summary>
   <div class="mini">終日のチェックを外すと時間指定になります。終了が開始より前なら翌日扱い。</div>
   <div id="settings"></div>
 </details>
 
 <script>
-const SHIFTS=["当直","明け","旭","静岡","がんセンター","残り番","外勤"];
+const SHIFTS=["当直","明け","旭","静岡","がんセンター","残り番"];
 const CONFS=["産科カンファ","心外カンファ","合同カンファ","医局会"];
 const WINE="11";   // トマト（ワインに一番近い赤）
 const SKY="7";
-const TEXTCOL={"明け":"11","外勤":"10"};  // 時間指定＝塗りつぶしなし・色付き文字（外勤は緑）
+const TEXTCOL={"明け":"11","旭":"10","静岡":"10","がんセンター":"10"};  // 時間指定＝塗りつぶしなし・色付き文字（外勤は緑）
 const COL=t=>TEXTCOL[t]||WINE;     // ピーコック（水色）
 
 let cfg={}; // 勤務ごとの設定
 try{cfg=JSON.parse(localStorage.getItem("shiftcfg")||"{}")}catch(e){}
-SHIFTS.forEach(s=>{if(!cfg[s])cfg[s]=(s==="明け"||s==="外勤")?{allDay:false,start:"08:30",end:"09:00"}:{allDay:true,start:"08:30",end:"17:00"}});
+SHIFTS.forEach(s=>{if(!cfg[s])cfg[s]=(s==="明け"||TEXTCOL[s]==="10")?{allDay:false,start:"08:30",end:"09:00"}:{allDay:true,start:"08:30",end:"17:00"}});
 const saveCfg=()=>{try{localStorage.setItem("shiftcfg",JSON.stringify(cfg))}catch(e){}};
 
 const pad=n=>String(n).padStart(2,"0");
