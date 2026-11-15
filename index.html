@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>シフト＆カンファ入力</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#8e2a3f">
+<link rel="icon" href="icon.svg">
+<script src="config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--wine:#8e2a3f;--wine-bg:#f6e4e8;--sky:#2a8fbd;--sky-bg:#dff1fa;--ink:#222;--mute:#777;--line:#e3e3e3;--bg:#fafafa}
+@media (prefers-color-scheme:dark){:root{--ink:#eee;--mute:#aaa;--line:#3a3a3a;--bg:#1b1b1b;--wine-bg:#4a2530;--sky-bg:#1f3a48}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--ink);padding:12px;max-width:520px;margin:0 auto}
+h1{font-size:18px;margin:4px 0 10px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;font-size:15px}
+.tabs button.on{background:var(--wine);color:#fff;border-color:var(--wine)}
+.tabs button.on.conf{background:var(--sky);border-color:var(--sky)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{padding:10px 14px;border-radius:999px;border:2px solid var(--wine);background:transparent;color:var(--ink);font-size:15px}
+.chip.on{background:var(--wine);color:#fff}
+.chips.c .chip{border-color:var(--sky)}
+.chips.c .chip.on{background:var(--sky)}
+.cal{border:1px solid var(--line);border-radius:12px;padding:8px}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.nav button{border:none;background:transparent;color:var(--ink);font-size:20px;padding:6px 14px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.dow{text-align:center;font-size:12px;color:var(--mute);padding:2px 0}
+.day{min-height:54px;border:1px solid var(--line);border-radius:8px;padding:3px;font-size:13px;background:transparent;color:var(--ink);text-align:left;display:flex;flex-direction:column;gap:2px}
+.day.empty{border:none}
+.day .n{font-size:12px}
+.day .tag{font-size:10px;line-height:1.2;background:var(--wine);color:#fff;border-radius:4px;padding:1px 3px;white-space:nowrap;overflow:hidden}
+.day.sun .n{color:#d33}.day.sat .n{color:#2a6fd3}
+.day.sel{background:var(--wine-bg)}
+.day.c.sel{background:var(--sky-bg)}
+.row{display:flex;gap:8px;align-items:center;margin:10px 0}
+.row label{width:84px;font-size:14px;color:var(--mute)}
+input[type=time],input[type=date],input[type=number],select{flex:1;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink)}
+.go{width:100%;padding:14px;font-size:17px;border:none;border-radius:12px;background:var(--wine);color:#fff;margin-top:14px}
+.go.conf{background:var(--sky)}
+.go:disabled{opacity:.4}
+.sub{font-size:13px;color:var(--mute);margin:6px 0}
+.log{margin-top:12px;font-size:14px;white-space:pre-wrap;border-top:1px solid var(--line);padding-top:10px}
+.ok{color:#2a9d4a}.ng{color:#d33}
+details{margin-top:16px;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+summary{font-size:14px}
+.sr{display:grid;grid-template-columns:82px 1fr 1fr 24px;gap:6px;align-items:center;margin:8px 0;font-size:13px}
+.sr input[type=time]{padding:6px;font-size:14px}
+.sr input[type=checkbox]{width:20px;height:20px}
+.mini{font-size:12px;color:var(--mute)}
+.clear{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 12px;font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>シフト＆カンファ入力</h1>
+<div class="tabs">
+  <button id="tabS" class="on">勤務シフト</button>
+  <button id="tabC" class="conf">カンファ</button>
+</div>
+
+<!-- 勤務 -->
+<section id="secS">
+  <div class="sub">種類を選んで、日付をタップ（もう一度タップで取り消し）</div>
+  <div class="chips" id="shiftChips"></div>
+  <div class="cal" id="calS"></div>
+  <div class="sub" id="countS"></div>
+  <button class="go" id="goS" disabled>Googleカレンダーに登録</button>
+  <button class="clear" id="clearS">選択をすべて解除</button>
+</section>
+
+<!-- カンファ -->
+<section id="secC" hidden>
+  <div class="sub">種類を選んで、日付と時間を決める（水色・アラーム付き）</div>
+  <div class="chips c" id="confChips"></div>
+  <div class="cal" id="calC"></div>
+  <div class="row"><label>開始</label><input type="time" id="cStart"></div>
+  <div class="row"><label>終了</label><input type="time" id="cEnd"></div>
+  <div class="row"><label>アラーム</label><select id="cAlarm">
+    <option value="0">開始時刻</option><option value="10">10分前</option><option value="30">30分前</option>
+    <option value="60">1時間前</option><option value="1440">前日</option></select></div>
+  <div class="sub" id="countC"></div>
+  <button class="go conf" id="goC" disabled>Googleカレンダーに登録</button>
+  <button class="clear" id="clearC">選択をすべて解除</button>
+</section>
+
+<div class="log" id="log"></div>
+
+<details>
+  <summary>勤務の時間設定（初期は全部「終日」）</summary>
+  <div class="mini">終日のチェックを外すと時間指定になります。終了が開始より前なら翌日扱い。</div>
+  <div id="settings"></div>
+</details>
+
+<script>
+const SHIFTS=["当直","明け","旭","静岡","がんセンター","残り番"];
+const CONFS=["産科カンファ","心外カンファ","合同カンファ"];
+const WINE="11";   // トマト（ワインに一番近い赤）
+const SKY="7";     // ピーコック（水色）
+
+let cfg={}; // 勤務ごとの設定
+try{cfg=JSON.parse(localStorage.getItem("shiftcfg")||"{}")}catch(e){}
+SHIFTS.forEach(s=>{if(!cfg[s])cfg[s]={allDay:true,start:"08:30",end:"17:00"}});
+const saveCfg=()=>{try{localStorage.setItem("shiftcfg",JSON.stringify(cfg))}catch(e){}};
+
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const addDays=(s,n)=>{const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return iso(d)};
+
+let curShift=SHIFTS[0], curConf=CONFS[0];
+const selS={};  // date -> [types]
+const selC=new Set();
+let viewS=new Date(), viewC=new Date();
+viewS.setDate(1); viewC.setDate(1);
+
+function chips(el,list,get,set,render){
+  el.innerHTML="";
+  list.forEach(t=>{const b=document.createElement("button");b.className="chip"+(get()===t?" on":"");b.textContent=t;
+    b.onclick=()=>{set(t);chips(el,list,get,set,render)};el.appendChild(b)});
+}
+
+function drawCal(el,view,isConf){
+  const y=view.getFullYear(),m=view.getMonth();
+  const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate();
+  let h=`<div class="nav"><button data-d="-1">‹</button><b>${y}年${m+1}月</b><button data-d="1">›</button></div><div class="grid">`;
+  "日月火水木金土".split("").forEach(w=>h+=`<div class="dow">${w}</div>`);
+  for(let i=0;i<first;i++)h+=`<div class="day empty"></div>`;
+  for(let d=1;d<=days;d++){
+    const k=`${y}-${pad(m+1)}-${pad(d)}`, dow=(first+d-1)%7;
+    let tags="",sel=false;
+    if(isConf){sel=selC.has(k)}
+    else if(selS[k]&&selS[k].length){sel=true;tags=selS[k].map(t=>`<span class="tag">${t}</span>`).join("")}
+    h+=`<button class="day${isConf?" c":""}${sel?" sel":""}${dow===0?" sun":""}${dow===6?" sat":""}" data-k="${k}"><span class="n">${d}</span>${tags}</button>`;
+  }
+  el.innerHTML=h+"</div>";
+  el.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{view.setMonth(view.getMonth()+Number(b.dataset.d));drawCal(el,view,isConf)});
+  el.querySelectorAll(".day[data-k]").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.k;
+    if(isConf){selC.has(k)?selC.delete(k):selC.add(k)}
+    else{const a=selS[k]||(selS[k]=[]);const i=a.indexOf(curShift);i>=0?a.splice(i,1):a.push(curShift);if(!a.length)delete selS[k]}
+    drawCal(el,view,isConf);counts();
+  });
+}
+function counts(){
+  const ns=Object.values(selS).reduce((a,b)=>a+b.length,0);
+  document.getElementById("countS").textContent=ns?`${ns}件を登録予定`:"";
+  document.getElementById("goS").disabled=!ns;
+  document.getElementById("countC").textContent=selC.size?`${selC.size}件を登録予定（${curConf}）`:"";
+  document.getElementById("goC").disabled=!selC.size;
+}
+
+chips(shiftChips,SHIFTS,()=>curShift,t=>curShift=t);
+chips(confChips,CONFS,()=>curConf,t=>{curConf=t;counts()});
+drawCal(calS,viewS,false); drawCal(calC,viewC,true);
+
+// 初期の時間（カンファ）
+try{cStart.value=localStorage.getItem("cs")||"08:00";cEnd.value=localStorage.getItem("ce")||"08:30";cAlarm.value=localStorage.getItem("ca")||"30"}catch(e){cStart.value="08:00";cEnd.value="08:30";cAlarm.value="30"}
+[cStart,cEnd,cAlarm].forEach((e,i)=>e.onchange=()=>{try{localStorage.setItem(["cs","ce","ca"][i],e.value)}catch(_){}});
+
+// タブ
+function tab(c){secS.hidden=c;secC.hidden=!c;tabS.classList.toggle("on",!c);tabC.classList.toggle("on",c)}
+tabS.onclick=()=>tab(false);tabC.onclick=()=>tab(true);
+clearS.onclick=()=>{for(const k in selS)delete selS[k];drawCal(calS,viewS,false);counts()};
+clearC.onclick=()=>{selC.clear();drawCal(calC,viewC,true);counts()};
+
+// 設定
+function drawSettings(){
+  settings.innerHTML="";
+  SHIFTS.forEach(s=>{
+    const c=cfg[s],r=document.createElement("div");r.className="sr";
+    r.innerHTML=`<span>${s}</span><input type="time" value="${c.start}" ${c.allDay?"disabled":""}><input type="time" value="${c.end}" ${c.allDay?"disabled":""}><input type="checkbox" ${c.allDay?"checked":""} title="終日">`;
+    const [,st,en,ad]=r.children;
+    st.onchange=()=>{c.start=st.value;saveCfg()};en.onchange=()=>{c.end=en.value;saveCfg()};
+    ad.onchange=()=>{c.allDay=ad.checked;saveCfg();drawSettings()};
+    settings.appendChild(r);
+  });
+}
+drawSettings();
+
+// 登録（Google Calendar API を直接呼ぶ）
+const SCOPE="https://www.googleapis.com/auth/calendar.events";
+let token=null,tokenExp=0,tc=null;
+function getToken(){
+  return new Promise((res,rej)=>{
+    if(token&&Date.now()<tokenExp-60000)return res(token);
+    if(!window.CLIENT_ID)return rej(new Error("config.js にクライアントIDが未設定です"));
+    if(!window.google||!google.accounts)return rej(new Error("Google認証の読み込み中です。少し待って再度押してください"));
+    tc=google.accounts.oauth2.initTokenClient({client_id:window.CLIENT_ID,scope:SCOPE,
+      callback:r=>{if(r.error)return rej(new Error(r.error));token=r.access_token;tokenExp=Date.now()+r.expires_in*1000;res(token)},
+      error_callback:e=>rej(new Error(e.type||"認証がキャンセルされました"))});
+    tc.requestAccessToken({prompt:token?"":""});
+  });
+}
+async function createEvent(tk,input){
+  const TZ="Asia/Tokyo";
+  const body={summary:input.summary,colorId:input.colorId};
+  if(input.allDay){body.start={date:input.startTime.slice(0,10)};body.end={date:input.endTime.slice(0,10)}}
+  else{body.start={dateTime:input.startTime,timeZone:TZ};body.end={dateTime:input.endTime,timeZone:TZ}}
+  body.reminders=input.overrideReminders?{useDefault:false,overrides:input.overrideReminders}:{useDefault:false};
+  const r=await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events",{method:"POST",
+    headers:{Authorization:"Bearer "+tk,"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok){let m="";try{m=(await r.json()).error.message}catch(e){}throw new Error(`HTTP ${r.status} ${m}`)}
+  return r.json();
+}
+function say(t,cls){const d=document.createElement("div");d.className=cls||"";d.textContent=t;log.appendChild(d)}
+
+async function run(items,btn){
+  log.innerHTML="";btn.disabled=true;
+  let tk;
+  try{tk=await getToken()}catch(e){say("ログインできませんでした："+e.message,"ng");btn.disabled=false;return}
+  let ok=0,ng=0;
+  for(const it of items){
+    try{await createEvent(tk,it.input);ok++;say(`✓ ${it.label}`,"ok");it.done&&it.done()}
+    catch(e){ng++;say(`✗ ${it.label}：${(e&&e.message)||e}`,"ng")}
+  }
+  say(`完了：成功${ok}件${ng?`／失敗${ng}件`:""}`);
+  counts();btn.disabled=false;
+}
+
+goS.onclick=()=>{
+  const items=[];
+  Object.keys(selS).sort().forEach(k=>selS[k].forEach(t=>{
+    const c=cfg[t];let input;
+    if(c.allDay)input={summary:t,allDay:true,startTime:`${k}T00:00:00`,endTime:`${addDays(k,1)}T00:00:00`,colorId:WINE};
+    else{const endDay=c.end<=c.start?addDays(k,1):k;input={summary:t,startTime:`${k}T${c.start}:00`,endTime:`${endDay}T${c.end}:00`,colorId:WINE}}
+    items.push({label:`${k.slice(5).replace("-","/")} ${t}`,input,done:()=>{const a=selS[k];const i=a.indexOf(t);if(i>=0)a.splice(i,1);if(!a.length)delete selS[k];drawCal(calS,viewS,false)}});
+  }));
+  run(items,goS);
+};
+goC.onclick=()=>{
+  const items=[...selC].sort().map(k=>({
+    label:`${k.slice(5).replace("-","/")} ${curConf}`,
+    input:{summary:curConf,startTime:`${k}T${cStart.value}:00`,endTime:`${k}T${cEnd.value}:00`,colorId:SKY,
+      overrideReminders:[{method:"popup",minutes:Number(cAlarm.value)}]},
+    done:()=>{selC.delete(k);drawCal(calC,viewC,true)}
+  }));
+  run(items,goC);
+};
+counts();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
