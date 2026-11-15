@@ -113,7 +113,7 @@ const addDays=(s,n)=>{const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);r
 
 let curShift=SHIFTS[0], curConf=CONFS[0];
 const selS={};  // date -> [types]
-const selC=new Set();
+const selC={};
 let viewS=new Date(), viewC=new Date();
 viewS.setDate(1); viewC.setDate(1);
 
@@ -132,7 +132,7 @@ function drawCal(el,view,isConf){
   for(let d=1;d<=days;d++){
     const k=`${y}-${pad(m+1)}-${pad(d)}`, dow=(first+d-1)%7;
     let tags="",sel=false;
-    if(isConf){sel=selC.has(k)}
+    if(isConf){if(selC[k]&&selC[k].length){sel=true;tags=selC[k].map(t=>`<span class="tag" style="background:var(--sky)">${t}</span>`).join("")}}
     else if(selS[k]&&selS[k].length){sel=true;tags=selS[k].map(t=>`<span class="tag">${t}</span>`).join("")}
     h+=`<button class="day${isConf?" c":""}${sel?" sel":""}${dow===0?" sun":""}${dow===6?" sat":""}" data-k="${k}"><span class="n">${d}</span>${tags}</button>`;
   }
@@ -140,17 +140,18 @@ function drawCal(el,view,isConf){
   el.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{view.setMonth(view.getMonth()+Number(b.dataset.d));drawCal(el,view,isConf)});
   el.querySelectorAll(".day[data-k]").forEach(b=>b.onclick=()=>{
     const k=b.dataset.k;
-    if(isConf){selC.has(k)?selC.delete(k):selC.add(k)}
+    if(isConf){const a=selC[k]||(selC[k]=[]);const i=a.indexOf(curConf);i>=0?a.splice(i,1):a.push(curConf);if(!a.length)delete selC[k]}
     else{const a=selS[k]||(selS[k]=[]);const i=a.indexOf(curShift);i>=0?a.splice(i,1):a.push(curShift);if(!a.length)delete selS[k]}
     drawCal(el,view,isConf);counts();
   });
 }
 function counts(){
   const ns=Object.values(selS).reduce((a,b)=>a+b.length,0);
+  const nc=Object.values(selC).reduce((a,b)=>a+b.length,0);
   document.getElementById("countS").textContent=ns?`${ns}件を登録予定`:"";
   document.getElementById("goS").disabled=!ns;
-  document.getElementById("countC").textContent=selC.size?`${selC.size}件を登録予定（${curConf}）`:"";
-  document.getElementById("goC").disabled=!selC.size;
+  document.getElementById("countC").textContent=nc?`${nc}件を登録予定`:"";
+  document.getElementById("goC").disabled=!nc;
 }
 
 chips(shiftChips,SHIFTS,()=>curShift,t=>curShift=t);
@@ -165,7 +166,7 @@ try{cStart.value=localStorage.getItem("cs")||"08:00";cEnd.value=localStorage.get
 function tab(c){secS.hidden=c;secC.hidden=!c;tabS.classList.toggle("on",!c);tabC.classList.toggle("on",c)}
 tabS.onclick=()=>tab(false);tabC.onclick=()=>tab(true);
 clearS.onclick=()=>{for(const k in selS)delete selS[k];drawCal(calS,viewS,false);counts()};
-clearC.onclick=()=>{selC.clear();drawCal(calC,viewC,true);counts()};
+clearC.onclick=()=>{for(const k in selC)delete selC[k];drawCal(calC,viewC,true);counts()};
 
 // 設定
 function drawSettings(){
@@ -232,11 +233,11 @@ goS.onclick=()=>{
   run(items,goS);
 };
 goC.onclick=()=>{
-  const items=[...selC].sort().map(k=>({
-    label:`${k.slice(5).replace("-","/")} ${curConf}`,
-    input:{summary:curConf,startTime:`${k}T${cStart.value}:00`,endTime:`${k}T${cEnd.value}:00`,colorId:SKY,
-      overrideReminders:[{method:"popup",minutes:Number(cAlarm.value)}]},
-    done:()=>{selC.delete(k);drawCal(calC,viewC,true)}
+  const items=[];
+  Object.keys(selC).sort().forEach(k=>selC[k].forEach(t=>{
+    items.push({label:`${k.slice(5).replace("-","/")} ${t}`,
+      input:{summary:t,startTime:`${k}T${cStart.value}:00`,endTime:`${k}T${cEnd.value}:00`,colorId:SKY,overrideReminders:[{method:"popup",minutes:Number(cAlarm.value)}]},
+      done:()=>{const a=selC[k];const i=a.indexOf(t);if(i>=0)a.splice(i,1);if(!a.length)delete selC[k];drawCal(calC,viewC,true)}});
   }));
   run(items,goC);
 };
