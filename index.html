@@ -89,7 +89,7 @@ summary{font-size:14px}
 <div class="log" id="log"></div>
 
 <details>
-  <summary>勤務の時間設定（初期は全部「終日」）</summary>
+  <summary>勤務の時間設定（初期は終日。明けだけ8:30〜9:00の時間指定）</summary>
   <div class="mini">終日のチェックを外すと時間指定になります。終了が開始より前なら翌日扱い。</div>
   <div id="settings"></div>
 </details>
@@ -102,7 +102,7 @@ const SKY="7";     // ピーコック（水色）
 
 let cfg={}; // 勤務ごとの設定
 try{cfg=JSON.parse(localStorage.getItem("shiftcfg")||"{}")}catch(e){}
-SHIFTS.forEach(s=>{if(!cfg[s])cfg[s]={allDay:true,start:"08:30",end:"17:00"}});
+SHIFTS.forEach(s=>{if(!cfg[s])cfg[s]=(s==="明け")?{allDay:false,start:"08:30",end:"09:00"}:{allDay:true,start:"08:30",end:"17:00"}});
 const saveCfg=()=>{try{localStorage.setItem("shiftcfg",JSON.stringify(cfg))}catch(e){}};
 
 const pad=n=>String(n).padStart(2,"0");
