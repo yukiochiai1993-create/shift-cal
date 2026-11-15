@@ -99,12 +99,12 @@ const SHIFTS=["当直","明け","旭","静岡","がんセンター","残り番",
 const CONFS=["産科カンファ","心外カンファ","合同カンファ","医局会"];
 const WINE="11";   // トマト（ワインに一番近い赤）
 const SKY="8";
-const TEXTCOL={"明け":"4","休み":"4","旭":"9","静岡":"9","がんセンター":"9"};  // 時間指定＝塗りつぶしなし・色付き文字（外勤は青）
+const TEXTCOL={"明け":"4","休み":"4","旭":"7","静岡":"7","がんセンター":"7"};  // 時間指定＝塗りつぶしなし・色付き文字（外勤は青）
 const COL=t=>TEXTCOL[t]||WINE;     // ピーコック（水色）
 
 let cfg={}; // 勤務ごとの設定
 try{cfg=JSON.parse(localStorage.getItem("shiftcfg")||"{}")}catch(e){}
-SHIFTS.forEach(s=>{if(!cfg[s])cfg[s]=(s==="明け"||TEXTCOL[s]==="9")?{allDay:false,start:"08:30",end:"09:00"}:{allDay:true,start:"08:30",end:"17:00"}});
+SHIFTS.forEach(s=>{if(!cfg[s])cfg[s]=(s==="明け"||TEXTCOL[s]==="7")?{allDay:false,start:"08:30",end:"09:00"}:{allDay:true,start:"08:30",end:"17:00"}});
 const saveCfg=()=>{try{localStorage.setItem("shiftcfg",JSON.stringify(cfg))}catch(e){}};
 
 const pad=n=>String(n).padStart(2,"0");
